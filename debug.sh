@@ -2,6 +2,7 @@ docker build -t vikash/readpathoslides:0.1.0 .
 
 app_dir=$(pwd)/app
 #data_dir=<input_data_dir>
+data_dir=/raid/Data/MayoClinicData/BloodPath
 #Enter the name of the input_data_dir
 
 

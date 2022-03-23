@@ -9,7 +9,7 @@ import numpy as np
 import argparse
 import sys
 import progressbar
-
+from tqdm import tqdm
 
 def get_arguments():
 	parser = argparse.ArgumentParser(description='Enter the parameters')
@@ -25,51 +25,27 @@ def get_arguments():
 
 def save_patches(patch_array, out_dir, root_filename):
 	num_patches = patch_array.shape[0]
-	pb = progressbar.ProgressBar(max_value=num_patches)
-	for i in range(num_patches):
-		out_filename = os.path.join(out_dir, root_filename + '_' + str(i) + '.png')
+	for i in tqdm(range(num_patches), desc='Creating Patchs...', ascii=False, ncols=100):
+		out_filename = os.path.join(out_dir, root_filename + str(i) + '.png')
 		img = np.transpose(patch_array[i,:], [2, 1, 0])
 		cv2.imwrite(out_filename, img)
-		pb.update(i)
 
-
-def main():
-	args = get_arguments()
-
-	file_type = args.ftype
-	data_dir = args.data_dir
-	out_dir = args.out_dir
-	patch_name = args.patch_name
-	tile_size = int(args.patch_size)
-	if args.num is None:
-		num_tiles = None
-	else:
-		num_tiles = int(args.num)
-
-
-	if args.ftype == 'tiff':
-		backend='TiffFile'
-		level=0
-	elif args.ftype == 'WSI':
-		backend='cuCIM'
-		level=3
-
-	
-	list_files = os.listdir(data_dir)
-	all_list_files = [os.path.join(data_dir, _) for _ in list_files]
-	data_dict={"image": all_list_files}
-	train_transform = Compose([LoadImage(image_only=True,reader=WSIReader, backend=backend), 
+def createTiles(filename, out_dir, patch_name = 'patch_', backend='cuCIM', num_tiles=None, tile_size=256):
+	"""
+	Extract patches from a whole slide image and saves the patches to a given dictionary 
+	:param filename: absolute filepath 
+	:param out_dir: Output location path 
+	:param backend: 'cuCIM' for svs file and 'TiffFile' for tiff images 
+	:param num_tiles: number of tiles to be extracted. default is None No tile will be extracted 
+	"""
+	extract_transform = Compose([LoadImage(image_only=True,reader=WSIReader, backend=backend), 
 				TileOnGrid(tile_count=num_tiles, tile_size=tile_size)])
-	pb = progressbar.ProgressBar(max_value=len(all_list_files))
-	count = 0 
-	if not os.path.exists(out_dir): 
-		os.makedirs(out_dir)
-	for filename in all_list_files:
-		X = train_transform(filename)
+	try: 
+		X = extract_transform(filename)
+
 		_root_filename = filename.split('/')[-1].split('.')[0]
 		save_patches(X, out_dir, _root_filename+ '_'  + patch_name )
-		pb.update(count)
-		count += 1
+	except:
+		print('Couldnot extract file: ', filename)
 
-if __name__ == '__main__':
-	main()
+
